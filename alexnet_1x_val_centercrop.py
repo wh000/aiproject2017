@@ -102,7 +102,12 @@ def preproc(image):
   # Read a whole file from the queue, the first returned value in the tuple is the
   # filename which we are ignoring.
   _, image_file = image_reader.read(filename_queue)
-  HELLLLLO WORLD
+
+
+
+HWLLO THIS IS MERGE 1
+  
+
   '''
   
   height=tf.shape(image)[0]
