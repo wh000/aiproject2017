@@ -10,9 +10,7 @@ from numpy import int32
 
 import sys
 sys.path.insert(0,'.')
-sys.path.insert(0,'../imagenetdata')
 
-from getimagenetclasses import *
 from alexnet import * 
 
 
@@ -102,12 +100,7 @@ def preproc(image):
   # Read a whole file from the queue, the first returned value in the tuple is the
   # filename which we are ignoring.
   _, image_file = image_reader.read(filename_queue)
-
-
-
-HWLLO THIS IS MERGE 1
   
-
   '''
   
   height=tf.shape(image)[0]
@@ -146,147 +139,216 @@ HWLLO THIS IS MERGE 1
 
 
 
-class datagetter:
-  def __init__(self,synsetfile,impath,xmlpath,ending):
-    pass
-    self.indicestosynsets,self.synsetstoindices,self.synsetstoclassdescr=parsesynsetwords(synsetfile)
-    self.imagelist=[]
-    self.xmlpath=xmlpath
-    self.ending=ending
-    self.counter=0
+# class datagetter:
+#   def __init__(self,synsetfile,impath,xmlpath,ending):
+#     pass
+#     self.indicestosynsets,self.synsetstoindices,self.synsetstoclassdescr=parsesynsetwords(synsetfile)
+#     self.imagelist=[]
+#     self.xmlpath=xmlpath
+#     self.ending=ending
+#     self.counter=0
     
-    for root, dirs, files in os.walk(impath):
-      for f in files:
-        fname= os.path.join(root, f)
-        if fname.endswith(self.ending):
-          self.imagelist.append(fname)   
+#     for root, dirs, files in os.walk(impath):
+#       for f in files:
+#         fname= os.path.join(root, f)
+#         if fname.endswith(self.ending):
+#           self.imagelist.append(fname)   
           
-    print('found',len(self.imagelist),'relevant files')
+#     print('found',len(self.imagelist),'relevant files')
   
-  def filenametoxml(self,fn):
-    f=os.path.basename(fn)
+#   def filenametoxml(self,fn):
+#     f=os.path.basename(fn)
     
-    if not f.endswith(self.ending):
-      print('not f.endswith(self.ending)')
-      exit()
+#     if not f.endswith(self.ending):
+#       print('not f.endswith(self.ending)')
+#       exit()
       
-    f=f[:-len(self.ending)]+'.xml'
-    f=os.path.join(self.xmlpath,f) 
+#     f=f[:-len(self.ending)]+'.xml'
+#     f=os.path.join(self.xmlpath,f) 
     
-    return f
+#     return f
     
-  def get_next_batch(self,batchsize):
+#   def get_next_batch(self,batchsize):
     
-    imlist=  self.imagelist[self.counter:int(min(self.counter+batchsize,len(self.imagelist)))]
-    self.counter+=batchsize
+#     imlist=  self.imagelist[self.counter:int(min(self.counter+batchsize,len(self.imagelist)))]
+#     self.counter+=batchsize
 
-    # wrap around if at end of dataset
-    diff=self.counter - len(self.imagelist)
-    if(diff>0):
-      imlist.extend(self.imagelist[0:diff] )
-      self.counter=diff 
-    elif diff==0: # exactly at the end, haha
-      self.counter=0
+#     # wrap around if at end of dataset
+#     diff=self.counter - len(self.imagelist)
+#     if(diff>0):
+#       imlist.extend(self.imagelist[0:diff] )
+#       self.counter=diff 
+#     elif diff==0: # exactly at the end, haha
+#       self.counter=0
 
-    labels=-np.ones((len(imlist)))
+#     labels=-np.ones((len(imlist)))
     
-    for ct,f in enumerate(imlist):
-      xmlfile=self.filenametoxml(f)
-      label,_=parseclasslabel(xmlfile,self.synsetstoindices)
-      labels[ct]=int(label)
+#     for ct,f in enumerate(imlist):
+#       xmlfile=self.filenametoxml(f)
+#       label,_=parseclasslabel(xmlfile,self.synsetstoindices)
+#       labels[ct]=int(label)
       
-    return imlist,labels  
+#     return imlist,labels  
 
-def run3(synsetfile,impath,xmlpath):
-  
-  
-  num=500 # 500 or 200  
-  batchsize=5
-  num_classes=1000
+#def run3(synsetfile,impath,xmlpath):
+def run3(dir_path,splitNumber,magnification):
+  train_set_path = dir_path+"/train_val_test_60_12_28/shuffled/split"+str(splitNumber)+"/"+str(magnification)+"X_val.txt"
 
-  keep_prob=1.
-  skip_layer=[]
-  is_training=False
-  
-  imagenet_mean = np.array([104., 117., 123.], dtype=np.float32) 
-  
-  cls=get_classes()
-  dataclass=datagetter(synsetfile,impath,xmlpath,'.JPEG')
-  
+  txt_directory = open(train_set_path,'r')
+  read_list = txt_directory.readlines()
+  directory_list = []
+  labels = []
+  for i in range(len(read_list)):
+    sublist = read_list[i].split(" ")
+    directory_list.append(sublist[0])
+    labels.append(sublist[1].strip())
+
+  batchsize = 5
+  keep_prob = 1
+  num_classes = 2
+  learning_rate= 0.001
+  skip_layer = []
+  is_training = False
+
   sess = tf.Session()
-
   
-  #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/beach.jpg'
-  #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/poodle.png'
-  #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/quail227.JPEG'
-
-
-
-
-
-  
-  
-  
-  
-  x = tf.placeholder(tf.float32, [batchsize, 227, 227, 3])
+  # preproc_py2(dir_path+"/BreaKHis_data/"+directory_list[4],250)
+  x = tf.placeholder(tf.float32, [batchsize, 230, 350, 3])
   net=AlexNet( x, keep_prob, num_classes, skip_layer, is_training, weights_path = 'DEFAULT')
-  out=net.fc8
-  
+  out=net.fc5
+  print out.shape
   
   init = tf.global_variables_initializer()
   sess.run(init)
   net.load_initial_weights(sess)
   
+
+
+  # num=500 # 500 or 200  
+  # batchsize=5
+  # num_classes=1000
+
+  # keep_prob=1.
+  # skip_layer=[]
+  # is_training=False
+  
+  # imagenet_mean = np.array([104., 117., 123.], dtype=np.float32) 
+  
+  # cls=get_classes()
+  # dataclass=datagetter(synsetfile,impath,xmlpath,'.JPEG')
+  
+  # sess = tf.Session()
+
+  
+  #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/beach.jpg'
+  #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/poodle.png'
+  #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/quail227.JPEG'
+  imlist = []
+  counter = 0
+  count = 0
+  y = tf.placeholder(tf.float32,[5])
+
+  #Loss + Optimizer
+  cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=out,labels=y))
+  optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+  #Evaluation functions
+  correct_pred = tf.equal(tf.argmax(out,1),tf.argmax(y,1))
+  accuracy = tf.reduce_mean(tf.cast(correct_pred,tf.float32))
+
+  for directory in directory_list:
+    counter+=1
+    count +=1
+    im = Image.open(dir_path+"/BreaKHis_data/"+directory)
+    image = np.array(im,dtype=np.float32)
+    cimage = cropped_center(image,230,350)
+    cimage=cimage[:,:,[2,1,0]]
+    imlist.append(cimage)
+    if counter == batchsize:
+      counter = 0
+      pred = -np.ones(batchsize)
+      ground_truth = -np.ones(batchsize)
+      totalim=np.zeros((batchsize,230,350,3))
+      for ct in range(batchsize):
+        totalim[ct,:,:,:]=imlist[ct]
+        ground_truth[ct] = labels[count-5+ct]
+
+
+      predict_values=sess.run(out, feed_dict={x: totalim}  )
+      for ct in range(batchsize):
+        index=np.argmax(predict_values[ct,:]) #get highest ranked index to check top 1 error
+        pred[ct] = index 
+      # print pred,ground_truth
+      print predict_values,pred
+      sess.run(optimizer, feed_dict={x: totalim, y: ground_truth})
+
+
+        
+
+
+  
+  
+  
+  
+  # x = tf.placeholder(tf.float32, [batchsize, 227, 227, 3])
+  # net=AlexNet( x, keep_prob, num_classes, skip_layer, is_training, weights_path = 'DEFAULT')
+  # out=net.fc8
+  
+  
+  # init = tf.global_variables_initializer()
+  # sess.run(init)
+  # net.load_initial_weights(sess)
+  
   
 
-  top1corr=0
-  top5corr=0
-  for i in range(num):
+  # top1corr=0
+  # top5corr=0
+  # for i in range(num):
   
-    ims,lb= dataclass.get_next_batch(batchsize)
+  #   ims,lb= dataclass.get_next_batch(batchsize)
     
-    totalim=np.zeros((batchsize,227,227,3))
-    print totalim.shape,lb.shape
-    print lb
-    for ct,imname in enumerate(ims):
-      im=preproc_py2(imname,250)
-      print im.shape
-      print imname
+  #   totalim=np.zeros((batchsize,227,227,3))
+  #   print totalim.shape,lb.shape
+  #   print lb
+  #   for ct,imname in enumerate(ims):
+  #     im=preproc_py2(imname,250)
+  #     print im.shape
+  #     print imname
       
-      if(im.ndim<3):
-        im=np.expand_dims(im,2)
-        im=np.concatenate((im,im,im),2)
+  #     if(im.ndim<3):
+  #       im=np.expand_dims(im,2)
+  #       im=np.concatenate((im,im,im),2)
       
-      if(im.shape[2]>3):
-        im=im[:,:,0:3]
+  #     if(im.shape[2]>3):
+  #       im=im[:,:,0:3]
 
-      #here need to average over 5 crops instead of one
-      imcropped=cropped_center(im,227,227)
+  #     #here need to average over 5 crops instead of one
+  #     imcropped=cropped_center(im,227,227)
 
-      imcropped=imcropped[:,:,[2,1,0]] #RGB to BGR 
-      imcropped=imcropped-imagenet_mean
+  #     imcropped=imcropped[:,:,[2,1,0]] #RGB to BGR 
+  #     imcropped=imcropped-imagenet_mean
 
-      print imcropped.shape,totalim.shape
-      totalim[ct,:,:,:]=imcropped
+  #     print(imcropped.shape,totalim.shape)
+  #     totalim[ct,:,:,:]=imcropped
   
-    predict_values=sess.run(out, feed_dict={x: totalim}  )
-    # has shape batchsize,numclasses
-    print(predict_values.shape)
+  #   predict_values=sess.run(out, feed_dict={x: totalim}  )
+  #   # has shape batchsize,numclasses
+  #   print(predict_values.shape)
   
-    for ct in range(len(ims)):
+  #   for ct in range(len(ims)):
     
-      ind = np.argpartition(predict_values[ct,:], -5)[-5:] #get highest ranked indices to check top 5 error 
-      index=np.argmax(predict_values[ct,:]) #get highest ranked index to check top 1 error
-      print(ind,predict_values[ct,ind],index)
+  #     ind = np.argpartition(predict_values[ct,:], -5)[-5:] #get highest ranked indices to check top 5 error 
+  #     index=np.argmax(predict_values[ct,:]) #get highest ranked index to check top 1 error
+  #     print(ind,predict_values[ct,ind],index)
       
 
-      if(index==lb[ct]):
-        top1corr+=1.0/(num*batchsize)
-      if( lb[ct] in ind):
-        top5corr+=1.0/(num*batchsize)
+  #     if(index==lb[ct]):
+  #       top1corr+=1.0/(num*batchsize)
+  #     if( lb[ct] in ind):
+  #       top5corr+=1.0/(num*batchsize)
   
-  print('top-1 corr', top1corr) 
-  print('top-5 corr', top5corr) 
+  # print('top-1 corr', top1corr) 
+  # print('top-5 corr', top5corr) 
   
   #print ('np.max(predict_values)', np.max(predict_values))
   #print ('classindex: ',np.argmax(predict_values))
@@ -296,8 +358,17 @@ if __name__=='__main__':
   #run2()
   #m=np.load('./ilsvrc_2012_mean.npy')
   #print(np.mean(np.mean(m,2),1))
-  synsetfile='/home/stanley/Artificial Intelligence/alexnet/synset_words.txt'
-  impath='/home/stanley/Artificial Intelligence/imagespart'
-  xmlpath='/home/stanley/Artificial Intelligence/val/'
-  run3(synsetfile,impath,xmlpath)
+
+  dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+  
+  splitNumber = 1
+  magnification = 200
+
+
+
+  # synsetfile='/home/stanley/Artificial Intelligence/alexnet/synset_words.txt'
+  # impath='/home/stanley/Artificial Intelligence/imagespart'
+  # xmlpath='/home/stanley/Artificial Intelligence/val/'
+  
+  run3(dir_path,splitNumber,magnification)
 

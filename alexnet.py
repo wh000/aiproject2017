@@ -21,6 +21,8 @@ class AlexNet(object):
     self.SKIP_LAYER = skip_layer
     self.IS_TRAINING = is_training
 
+    self.layerlist = ['conv1','conv2','conv3','fc4','fc5']
+    self.dimension = {}
     if weights_path == 'DEFAULT':
       self.WEIGHTS_PATH = 'bvlc_alexnet.npy'
     else:
@@ -30,69 +32,122 @@ class AlexNet(object):
     self.create()
 
   def create(self):
+# def conv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
+#          padding='SAME', groups=1):
+# def max_pool(x, filter_height, filter_width, stride_y, stride_x,
+#              name, padding='SAME'):
+    # 1st Layer: Conv (w ReLu) -> MaxPool
+    conv1 = conv(self.X, 5, 5, 32, 1, 1, padding = 'SAME', name = 'conv1')
+    pool1 = max_pool(conv1, 3, 3, 2, 2, padding = 'SAME', name = 'pool1')
+    # norm1 = lrn(pool1, 2, 2e-05, 0.75, name = 'norm1')
+    print("Conv1: ")
+    print(conv1.shape)
+    print("Pool1: ")
+    print(pool1.shape)
+    self.dimension['conv1'] = [5,5,3,32]
+    # 2nd Layer: Conv (w ReLu) -> AvgPool
+    conv2 = conv(pool1, 5, 5, 32, 1, 1, padding = 'SAME', name = 'conv2')
+    pool2 = avg_pool(conv2, 3, 3, 2, 2, padding = 'SAME', name ='pool2')
+    # norm2 = lrn(pool2, 2, 2e-05, 0.75, name = 'norm2')
+    print("Conv2: ")
+    print(conv2.shape)
+    print("Pool2: ")
+    print(pool2.shape)  
 
-    # 1st Layer: Conv (w ReLu) -> Pool -> Lrn
-    conv1 = conv(self.X, 11, 11, 96, 4, 4, padding = 'VALID', name = 'conv1')
-    pool1 = max_pool(conv1, 3, 3, 2, 2, padding = 'VALID', name = 'pool1')
-    norm1 = lrn(pool1, 2, 2e-05, 0.75, name = 'norm1')
+    self.dimension['conv2'] = [5,5,32,32]
+    # 3rd Layer: Conv (w ReLu) -> AvgPool
+    conv3 = conv(pool2, 5, 5, 64, 1, 1, padding = 'SAME', name = 'conv3')
+    pool3 = avg_pool(conv3, 3, 3, 2, 2, padding = 'SAME', name = 'pool3')
+    print("Conv3: ")
+    print(conv3.shape)
+    print("Pool3: ")
+    print(pool3.shape)
+
+    self.dimension['conv3'] = [5,5,32,64]
+    #350*230 temporary image crop
+    flattened = tf.reshape(pool3, [-1, pool3.shape[1].value*pool3.shape[2].value*64])
+    fc4 = fc(flattened, pool3.shape[1].value*pool3.shape[2].value*64, 100, name='fc4')
+    dropout4 = dropout(fc4, self.KEEP_PROB)
   
-    # 2nd Layer: Conv (w ReLu) -> Pool -> Lrn with 2 groups
-    conv2 = conv(norm1, 5, 5, 256, 1, 1, groups = 2, name = 'conv2')
-    pool2 = max_pool(conv2, 3, 3, 2, 2, padding = 'VALID', name ='pool2')
-    norm2 = lrn(pool2, 2, 2e-05, 0.75, name = 'norm2')
+    self.fc5 = fc(dropout4, 100, 2, name = 'fc5')
+    print("fc4: ")
+    print(fc4.shape)
+    print("fc5: ")
+    print(self.fc5.shape)    
+
+
+    self.dimension['fc4'] = [pool3.shape[1].value*pool3.shape[2].value*64,100]
+
+    self.dimension['fc5'] = [100,2]
+    # # 4th Layer: Conv (w ReLu) splitted into two groups
+    # conv4 = conv(conv3, 3, 3, 384, 1, 1, groups = 2, name = 'conv4')
   
-    # 3rd Layer: Conv (w ReLu)
-    conv3 = conv(norm2, 3, 3, 384, 1, 1, name = 'conv3')
-  
-    # 4th Layer: Conv (w ReLu) splitted into two groups
-    conv4 = conv(conv3, 3, 3, 384, 1, 1, groups = 2, name = 'conv4')
-  
-    # 5th Layer: Conv (w ReLu) -> Pool splitted into two groups
-    conv5 = conv(conv4, 3, 3, 256, 1, 1, groups = 2, name = 'conv5')
-    pool5 = max_pool(conv5, 3, 3, 2, 2, padding = 'VALID', name = 'pool5')
+    # # 5th Layer: Conv (w ReLu) -> Pool splitted into two groups
+    # conv5 = conv(conv4, 3, 3, 256, 1, 1, groups = 2, name = 'conv5')
+    # pool5 = max_pool(conv5, 3, 3, 2, 2, padding = 'VALID', name = 'pool5')
   
     # 6th Layer: Flatten -> FC (w ReLu) -> Dropout
-    flattened = tf.reshape(pool5, [-1, 6*6*256])
-    fc6 = fc(flattened, 6*6*256, 4096, name='fc6')
-    dropout6 = dropout(fc6, self.KEEP_PROB)
+    # flattened = tf.reshape(pool5, [-1, 6*6*256])
+    # fc6 = fc(flattened, 6*6*256, 4096, name='fc6')
+    # dropout6 = dropout(fc6, self.KEEP_PROB)
   
     # 7th Layer: FC (w ReLu) -> Dropout
-    fc7 = fc(dropout6, 4096, 4096, name = 'fc7')
-    dropout7 = dropout(fc7, self.KEEP_PROB)
+
   
     # 8th Layer: FC and return unscaled activations
-    # (for tf.nn.softmax_cross_entropy_with_logits)
-    self.fc8 = fc(dropout7, 4096, self.NUM_CLASSES, relu = False, name='fc8')
+    # # (for tf.nn.softmax_cross_entropy_with_logits)
+    # self.fc8 = fc(dropout7, 4096, self.NUM_CLASSES, relu = False, name='fc8')
 
   def load_initial_weights(self,session):
 
-    pass
 
-    # Load the weights into memory
-    weights_dict = np.load(self.WEIGHTS_PATH, encoding = 'bytes').item()
+    # for layer in self.layerlist:
+    #   data = np.random.normal(0,0.0001,(5,5,3,self.dimension['conv1'][3].value))
+    
+    # with tf.variable_scope('conv1', reuse = True):
+    #   var = tf.get_variable('weights',trainable = False)
+    #   session.run(var.assign(data))
+    # for layer in self.layerlist:
+    #   self.weights_paramdict[layer] = tf.get_variable(name=layer,shape=[])
+
+    for layer in self.layerlist:
+      with tf.variable_scope(layer, reuse = True):
+        if layer[:4]=='conv2':
+          data = np.random.normal(0,0.01,(self.dimension[layer][0],self.dimension[layer][1],self.dimension[layer][2],self.dimension[layer][3]))
+        elif layer[:2] == 'fc':
+          data = np.random.normal(0,0.0001,(self.dimension[layer][0],self.dimension[layer][1]))
+        else:
+          data = np.random.normal(0,0.0001,(self.dimension[layer][0],self.dimension[layer][1],self.dimension[layer][2],self.dimension[layer][3]))
+        var = tf.get_variable('weights',trainable = False)
+        session.run(var.assign(data))
+
+    # pass
+
+    # # Load the weights into memory
+    # weights_dict = np.load(self.WEIGHTS_PATH, encoding = 'bytes').item()
+    # print len(weights_dict['fc8'][0][0])
+    # # # Loop over all layer names stored in the weights dict
+    # for op_name in weights_dict:
   
-    # Loop over all layer names stored in the weights dict
-    for op_name in weights_dict:
+    #   # Check if the layer is one of the layers that should be reinitialized
+    #   if op_name not in self.SKIP_LAYER:
   
-      # Check if the layer is one of the layers that should be reinitialized
-      if op_name not in self.SKIP_LAYER:
+    #     with tf.variable_scope(op_name, reuse = True):
   
-        with tf.variable_scope(op_name, reuse = True):
+    #       # Loop over list of weights/biases and assign them to their corresponding tf variable
+    #       for data in weights_dict[op_name]:
   
-          # Loop over list of weights/biases and assign them to their corresponding tf variable
-          for data in weights_dict[op_name]:
+    #         # Biases
+    #         if len(data.shape) == 1:
   
-            # Biases
-            if len(data.shape) == 1:
+    #           var = tf.get_variable('biases', trainable = False)
+    #           session.run(var.assign(data))
   
-              var = tf.get_variable('biases', trainable = False)
-              session.run(var.assign(data))
+    #         # Weights
+    #         else:
   
-            # Weights
-            else:
-  
-              var = tf.get_variable('weights', trainable = False)
-              session.run(var.assign(data))
+    #           var = tf.get_variable('weights', trainable = False)
+    #           session.run(var.assign(data))
 
 def conv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
          padding='SAME', groups=1):
@@ -154,6 +209,12 @@ def fc(x, num_in, num_out, name, relu = True):
 def max_pool(x, filter_height, filter_width, stride_y, stride_x,
              name, padding='SAME'):
   return tf.nn.max_pool(x, ksize=[1, filter_height, filter_width, 1],
+                        strides = [1, stride_y, stride_x, 1],
+                        padding = padding, name = name)
+
+def avg_pool(x, filter_height, filter_width, stride_y, stride_x,
+             name, padding='SAME'):
+  return tf.nn.avg_pool(x, ksize=[1, filter_height, filter_width, 1],
                         strides = [1, stride_y, stride_x, 1],
                         padding = padding, name = name)
 
