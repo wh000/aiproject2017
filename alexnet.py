@@ -37,6 +37,9 @@ class AlexNet(object):
 # def max_pool(x, filter_height, filter_width, stride_y, stride_x,
 #              name, padding='SAME'):
     # 1st Layer: Conv (w ReLu) -> MaxPool
+    print("X: ")
+    print(self.X)
+    print(self.X.shape)
     conv1 = conv(self.X, 5, 5, 32, 1, 1, padding = 'SAME', name = 'conv1')
     pool1 = max_pool(conv1, 3, 3, 2, 2, padding = 'SAME', name = 'pool1')
     # norm1 = lrn(pool1, 2, 2e-05, 0.75, name = 'norm1')
@@ -73,7 +76,8 @@ class AlexNet(object):
     print("fc4: ")
     print(fc4.shape)
     print("fc5: ")
-    print(self.fc5.shape)    
+    print(self.fc5.shape)
+    print("======================")    
 
 
     self.dimension['fc4'] = [pool3.shape[1].value*pool3.shape[2].value*64,100]

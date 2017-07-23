@@ -25,7 +25,7 @@ def preproc_py2(imname,shorterside):
   pilimg = Image.open(imname)
   w,h=pilimg.size
   
-  print((w,h))
+  print(w,h)
   
   if w > h:
     longerside= np.int32(math.floor(float(shorterside)/float(h)*w))
@@ -48,9 +48,7 @@ def cropped_center(im,hsize,wsize):
   h=im.shape[0]
   w=im.shape[1]
   
-  # cim=im[(h-hsize)/2:(h-hsize)/2+hsize,(w-wsize)/2:(w-wsize)/2+wsize,:]
-  cim=im[int((h-hsize)/2):int((h-hsize)/2)+int(hsize),int((w-wsize)/2):int((w-wsize)/2)+int(wsize),:]
-
+  cim=im[(h-hsize)/2:(h-hsize)/2+hsize,(w-wsize)/2:(w-wsize)/2+wsize,:]
   
   return cim
 
@@ -212,16 +210,15 @@ def run3(dir_path,splitNumber,magnification):
   skip_layer = []
   is_training = False
 
+  sess = tf.Session()
   
   # preproc_py2(dir_path+"/BreaKHis_data/"+directory_list[4],250)
   x = tf.placeholder(tf.float32, [batchsize, 230, 350, 3])
   net=AlexNet( x, keep_prob, num_classes, skip_layer, is_training, weights_path = 'DEFAULT')
   out=net.fc5
-  print("Out: ")
-  print(out.shape)
+  print out.shape
   
-  init = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
-  sess = tf.Session()
+  init = tf.global_variables_initializer()
   sess.run(init)
   net.load_initial_weights(sess)
   
@@ -249,11 +246,10 @@ def run3(dir_path,splitNumber,magnification):
   imlist = []
   counter = 0
   count = 0
-  y = tf.placeholder(tf.float32, shape=(5, 2))
-  print("y: ", y.shape)
+  y = tf.placeholder(tf.float32,[5])
 
-  #Loss + optimizerzer
-  cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=out, labels=y))
+  #Loss + Optimizer
+  cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=out,labels=y))
   optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
   #Evaluation functions
@@ -270,8 +266,8 @@ def run3(dir_path,splitNumber,magnification):
     imlist.append(cimage)
     if counter == batchsize:
       counter = 0
-      pred = -np.ones((batchsize, 2))
-      ground_truth = -np.ones((batchsize, 2))
+      pred = -np.ones(batchsize)
+      ground_truth = -np.ones(batchsize)
       totalim=np.zeros((batchsize,230,350,3))
       for ct in range(batchsize):
         totalim[ct,:,:,:]=imlist[ct]
@@ -283,7 +279,7 @@ def run3(dir_path,splitNumber,magnification):
         index=np.argmax(predict_values[ct,:]) #get highest ranked index to check top 1 error
         pred[ct] = index 
       # print pred,ground_truth
-      print(predict_values,pred)
+      print predict_values,pred
       sess.run(optimizer, feed_dict={x: totalim, y: ground_truth})
 
 
