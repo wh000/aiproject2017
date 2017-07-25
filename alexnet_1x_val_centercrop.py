@@ -192,25 +192,64 @@ def preproc(image):
       
 #     return imlist,labels  
 
+def do_eval(sess,
+            eval_correct, #the tensor to be computed
+            images_placeholder, #placeholders
+            labels_placeholder,
+            keep_prob,
+            data_set):
+  """Runs one evaluation against the full epoch of data.
+  Args:
+    sess: The session in which the model has been trained.
+    eval_correct: The Tensor that returns the number of correct predictions.
+    images_placeholder: The images placeholder.
+    labels_placeholder: The labels placeholder.
+    data_set: The set of images and labels to evaluate, from
+      input_data.read_data_sets().
+  """
+  # And run one epoch of eval.
+  true_count = 0  # Counts the number of correct predictions.
+  steps_per_epoch = data_set.num_examples // FLAGS.batch_size
+  num_examples = steps_per_epoch * FLAGS.batch_size
+  for step in xrange(steps_per_epoch):
+    feed_dict = fill_feed_dict(data_set,
+                               images_placeholder,
+                               labels_placeholder,keep_prob,1.0)
+    true_count += sess.run(eval_correct, feed_dict=feed_dict)
+  precision = float(true_count) / num_examples
+
+   
+
+  print('  Num examples: %d  Num correct: %d  Precision @ 1: %0.04f' %
+        (num_examples, true_count, precision))
+
+  return precision
+
 #def run3(synsetfile,impath,xmlpath):
 def run3(dir_path,splitNumber,magnification):
-  train_set_path = dir_path+"/train_val_test_60_12_28/shuffled/split"+str(splitNumber)+"/"+str(magnification)+"X_val.txt"
-
-  txt_directory = open(train_set_path,'r')
-  read_list = txt_directory.readlines()
-  directory_list = []
-  labels = []
-  for i in range(len(read_list)):
-    sublist = read_list[i].split(" ")
-    directory_list.append(sublist[0])
-    labels.append(sublist[1].strip())
-
   batchsize = 5
   keep_prob = 1
   num_classes = 2
   learning_rate= 0.001
   skip_layer = []
   is_training = False
+
+  train_set_path = dir_path+"/train_val_test_60_12_28/shuffled/split"+str(splitNumber)+"/"+str(magnification)+"X_val.txt"
+
+  txt_directory = open(train_set_path,'r')
+  read_list = txt_directory.readlines()
+  directory_list = []
+  labels = np.ones((len(read_list), 2))
+  for i in range(len(read_list)):
+    sublist = read_list[i].split(" ")
+    directory_list.append(sublist[0])
+    if(sublist[1].strip() == '1'):
+      temp = (1, 0)
+    elif(sublist[1].strip() == '0'):
+      temp = (0,1)
+    labels[i] = (temp)
+
+  print("labels: ", labels)
 
   
   # preproc_py2(dir_path+"/BreaKHis_data/"+directory_list[4],250)
@@ -219,8 +258,25 @@ def run3(dir_path,splitNumber,magnification):
   out=net.fc5
   print("Out: ")
   print(out.shape)
-  
-  init = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
+ 
+
+  imlist = []
+  counter = 0
+  count = 0
+  y = tf.placeholder(tf.float32, shape=(batchsize, 2))
+  print("y: ", y.shape)
+
+  #Loss + optimizerzer
+  cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=out, labels=y))
+  # optmin = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
+  # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+  optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+  optmin=optimizer.minimize(cost)
+
+
+
+
+  init = tf.global_variables_initializer()
   sess = tf.Session()
   sess.run(init)
   net.load_initial_weights(sess)
@@ -246,16 +302,7 @@ def run3(dir_path,splitNumber,magnification):
   #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/beach.jpg'
   #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/poodle.png'
   #imname='/home/binder/entwurf6/tfplaycpu/ai/alexnet/quail227.JPEG'
-  imlist = []
-  counter = 0
-  count = 0
-  y = tf.placeholder(tf.float32, shape=(5, 2))
-  print("y: ", y.shape)
-
-  #Loss + optimizerzer
-  cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=out, labels=y))
-  optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
+ 
   #Evaluation functions
   correct_pred = tf.equal(tf.argmax(out,1),tf.argmax(y,1))
   accuracy = tf.reduce_mean(tf.cast(correct_pred,tf.float32))
@@ -282,18 +329,12 @@ def run3(dir_path,splitNumber,magnification):
       for ct in range(batchsize):
         index=np.argmax(predict_values[ct,:]) #get highest ranked index to check top 1 error
         pred[ct] = index 
-      # print pred,ground_truth
-      print(predict_values,pred)
-      sess.run(optimizer, feed_dict={x: totalim, y: ground_truth})
+      print(pred,ground_truth)
+      # print(predict_values,pred)
+      sess.run(optmin, feed_dict={x: totalim, y: ground_truth})
 
 
-        
-
-
-  
-  
-  
-  
+      
   # x = tf.placeholder(tf.float32, [batchsize, 227, 227, 3])
   # net=AlexNet( x, keep_prob, num_classes, skip_layer, is_training, weights_path = 'DEFAULT')
   # out=net.fc8
