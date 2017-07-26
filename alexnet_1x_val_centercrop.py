@@ -308,6 +308,7 @@ def run3(dir_path,splitNumber,magnification):
   accuracy = tf.reduce_mean(tf.cast(correct_pred,tf.float32))
 
   for directory in directory_list:
+
     counter+=1
     count +=1
     im = Image.open(dir_path+"/BreaKHis_data/"+directory)
@@ -315,6 +316,7 @@ def run3(dir_path,splitNumber,magnification):
     cimage = cropped_center(image,230,350)
     cimage=cimage[:,:,[2,1,0]]
     imlist.append(cimage)
+
     if counter == batchsize:
       counter = 0
       pred = -np.ones((batchsize, 2))
@@ -326,12 +328,19 @@ def run3(dir_path,splitNumber,magnification):
 
 
       predict_values=sess.run(out, feed_dict={x: totalim}  )
+      print("PREDICT VALUES: ", predict_values)
       for ct in range(batchsize):
         index=np.argmax(predict_values[ct,:]) #get highest ranked index to check top 1 error
         pred[ct] = index 
-      print(pred,ground_truth)
-      # print(predict_values,pred)
+      # print(pred,ground_truth)
+        
+        # print("-------------")
+        # print(ground_truth)
+        # print("====================")
       sess.run(optmin, feed_dict={x: totalim, y: ground_truth})
+      print("***********************************")
+
+      imlist = []
 
 
       
